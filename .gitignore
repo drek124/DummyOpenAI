@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.venv/
+test/
+
+# local config (copy of responses-sample.yaml)
+responses.yaml

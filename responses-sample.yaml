@@ -1,0 +1,84 @@
+# Dummy OpenAI server configuration (sample). Copy to responses.yaml and edit;
+# server.py creates responses.yaml from this file on first run if it is missing.
+# Rules are checked top to bottom; the first match wins. If none match, `default` is used.
+# Content placeholders: {{last_message}}, {{model}}, {{request_count}}
+
+settings:
+  api_key: null              # set e.g. "sk-dummy" to require "Authorization: Bearer sk-dummy"
+  models: [gpt-4o, gpt-4o-mini, gpt-4.1, gpt-4.1-mini, text-embedding-3-small, text-embedding-3-large]
+  strict_models: false       # true -> unknown models return 404 model_not_found
+  latency_ms: 0              # delay before every response
+  stream_chunk_delay_ms: 15  # delay between streamed chunks
+  error_rate: 0.0            # chance of a random 500 on generation requests
+  seed: 42                   # makes "random" mode and error_rate reproducible
+  embedding_dimensions: 1536
+
+rules:
+  - name: greeting
+    match:
+      regex: '^\s*(hi|hello|hey)\b'
+    response:
+      content: "Hello! I'm a dummy assistant. How can I help you today?"
+
+  - name: weather-tool
+    match:
+      contains: weather
+      has_tools: true
+    response:
+      tool_calls:
+        - name: get_weather
+          arguments: { location: "San Francisco, CA", unit: celsius }
+
+  - name: json-output
+    match:
+      contains: [json, structured]
+    response:
+      content: '{"status": "ok", "items": [1, 2, 3], "message": "dummy structured output"}'
+
+  - name: jokes
+    match:
+      contains: joke
+    response:
+      mode: cycle   # or "random"
+      content:
+        - "Why do programmers prefer dark mode? Because light attracts bugs."
+        - "There are 10 kinds of people: those who understand binary and those who don't."
+        - "I would tell you a UDP joke, but you might not get it."
+
+  - name: long-answer
+    match:
+      contains: essay
+    response:
+      finish_reason: length
+      content: >-
+        This is a deliberately long, truncated response used to test how your application
+        handles finish_reason "length". Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+        sed do eiusmod tempor incididunt ut labore et dolore magna aliqua
+
+  - name: slow
+    match:
+      contains: "[slow]"
+    response:
+      latency_ms: 3000
+      content: "Sorry for the wait - this response was intentionally delayed by 3 seconds."
+
+  - name: rate-limit
+    match:
+      contains: "[ratelimit]"
+    response:
+      error: { status: 429, type: requests, code: rate_limit_exceeded, message: "Rate limit reached (simulated)." }
+
+  - name: server-error
+    match:
+      contains: "[error]"
+    response:
+      error: { status: 500, type: server_error, message: "The server had an error (simulated)." }
+
+  - name: mini-model
+    match:
+      model: "gpt-4o-mini*"
+    response:
+      content: "[{{model}}] Short answer #{{request_count}}: {{last_message}}"
+
+default:
+  content: "This is a dummy response from the fake OpenAI server. You said: {{last_message}}"
